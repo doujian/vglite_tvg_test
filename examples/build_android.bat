@@ -270,7 +270,7 @@ if errorlevel 1 (
 )
 
 pushd "%APK_OUTPUT%"
-"%ANDROID_BUILD_TOOLS%\aapt.exe" add base.apk lib\arm64-v8a\libvglite_demo.so >nul
+"%ANDROID_BUILD_TOOLS%\aapt.exe" add base.apk lib/arm64-v8a/libvglite_demo.so >nul
 if exist classes.dex "%ANDROID_BUILD_TOOLS%\aapt.exe" add base.apk classes.dex >nul
 popd
 
