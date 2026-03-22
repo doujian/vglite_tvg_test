@@ -218,43 +218,101 @@ static void render_frame(int color_index) {
 }
 
 // ============================================================================
+// Global state
+// ============================================================================
+static bool g_window_ready = false;
+static bool g_egl_initialized = false;
+static bool g_vglite_initialized = false;
+static int g_color_index = 0;
+static int g_cycle_count = 0;
+
+// ============================================================================
+// Command handler for NativeActivity events
+// ============================================================================
+static void handle_app_cmd(android_app* app, int32_t cmd) {
+    switch (cmd) {
+        case APP_CMD_INIT_WINDOW:
+            // Window is now available
+            LOGI("APP_CMD_INIT_WINDOW: window=%p", app->window);
+            if (app->window != nullptr) {
+                g_window_ready = true;
+                
+                // Initialize EGL now that window is ready
+                if (!g_egl_initialized) {
+                    if (init_egl(app)) {
+                        g_egl_initialized = true;
+                        LOGI("EGL initialized successfully");
+                        
+                        // Initialize VGLite after EGL is ready
+                        if (init_vglite()) {
+                            g_vglite_initialized = true;
+                            LOGI("VGLite initialized successfully");
+                        } else {
+                            LOGE("Failed to initialize VGLite");
+                        }
+                    } else {
+                        LOGE("Failed to initialize EGL");
+                    }
+                }
+            }
+            break;
+            
+        case APP_CMD_TERM_WINDOW:
+            // Window is being destroyed
+            LOGI("APP_CMD_TERM_WINDOW");
+            g_window_ready = false;
+            if (g_vglite_initialized) {
+                term_vglite();
+                g_vglite_initialized = false;
+            }
+            if (g_egl_initialized) {
+                term_egl();
+                g_egl_initialized = false;
+            }
+            break;
+            
+        case APP_CMD_GAINED_FOCUS:
+            LOGI("APP_CMD_GAINED_FOCUS");
+            break;
+            
+        case APP_CMD_LOST_FOCUS:
+            LOGI("APP_CMD_LOST_FOCUS");
+            break;
+            
+        case APP_CMD_DESTROY:
+            LOGI("APP_CMD_DESTROY");
+            break;
+    }
+}
+
+// ============================================================================
 // Main Entry Point
 // ============================================================================
 void android_main(android_app* app) {
     LOGI("=== VGLite Clear Demo (Android) ===");
     LOGI("Backend: OpenGL ES (ThorVG GL Engine)");
-    LOGI("Window: %p", app->window);
     LOGI("Colors: %d, Interval: %dms", NUM_COLORS, COLOR_SWITCH_INTERVAL_MS);
     
-    // Initialize EGL
-    if (!init_egl(app)) {
-        LOGE("Failed to initialize EGL");
-        return;
-    }
+    // Set up command handler
+    app->onAppCmd = handle_app_cmd;
     
-    // Initialize VGLite
-    if (!init_vglite()) {
-        LOGE("Failed to initialize VGLite");
-        term_egl();
-        return;
-    }
-    
-    // Render loop
-    int color_index = 0;
-    int cycle_count = 0;
+    // Main loop
     bool running = true;
+    int frame_count = 0;
+    
+    LOGI("Entering main loop...");
     
     while (running) {
-        // Process Android events using ALooper_pollOnce (pollAll is deprecated)
+        // Process Android events
         int ident;
         int events;
         android_poll_source* source;
         
-        // Process all pending events
-        while ((ident = ALooper_pollOnce(0, nullptr, &events, (void**)&source)) >= 0) {
-            if (ident == ALOOPER_POLL_TIMEOUT) {
-                break;  // No more events
-            }
+        // Always poll with timeout=0 to avoid blocking
+        // If not ready, use timeout=-1 to wait for first event
+        int timeout = (g_window_ready && g_egl_initialized && g_vglite_initialized) ? 0 : -1;
+        
+        while ((ident = ALooper_pollOnce(timeout, nullptr, &events, (void**)&source)) >= 0) {
             if (source != nullptr) {
                 source->process(app, source);
             }
@@ -263,30 +321,40 @@ void android_main(android_app* app) {
                 running = false;
                 break;
             }
+            
+            // Update timeout after each event in case state changed
+            timeout = (g_window_ready && g_egl_initialized && g_vglite_initialized) ? 0 : -1;
         }
         
         if (!running) break;
         
-        // Render current color
-        const char* color_name = (color_index == 0) ? "Red" :
-                                 (color_index == 1) ? "Green" :
-                                 (color_index == 2) ? "Blue" :
-                                 (color_index == 3) ? "Yellow" : "Cyan";
-        
-        LOGI("Cycle %d: %s (0x%08X)", cycle_count + 1, color_name, COLORS[color_index]);
-        render_frame(color_index);
-        
-        // Advance to next color
-        color_index = (color_index + 1) % NUM_COLORS;
-        cycle_count++;
-        
-        // Sleep for color switch interval
-        usleep(COLOR_SWITCH_INTERVAL_MS * 1000);
+        // Only render when everything is ready
+        if (g_window_ready && g_egl_initialized && g_vglite_initialized) {
+            // Render current color
+            const char* color_name = (g_color_index == 0) ? "Red" :
+                                     (g_color_index == 1) ? "Green" :
+                                     (g_color_index == 2) ? "Blue" :
+                                     (g_color_index == 3) ? "Yellow" : "Cyan";
+            
+            LOGI("Cycle %d: %s (0x%08X)", g_cycle_count + 1, color_name, COLORS[g_color_index]);
+            render_frame(g_color_index);
+            
+            // Advance to next color
+            g_color_index = (g_color_index + 1) % NUM_COLORS;
+            g_cycle_count++;
+            
+            // Sleep for color switch interval
+            usleep(COLOR_SWITCH_INTERVAL_MS * 1000);
+        }
     }
     
     // Cleanup
     LOGI("Cleaning up...");
-    term_vglite();
-    term_egl();
+    if (g_vglite_initialized) {
+        term_vglite();
+    }
+    if (g_egl_initialized) {
+        term_egl();
+    }
     LOGI("Demo finished");
 }
