@@ -15,6 +15,21 @@
 // GLFW for window management
 #include <GLFW/glfw3.h>
 
+// GLFW native headers for platform-specific GL context
+#if defined(_WIN32)
+    #define GLFW_EXPOSE_NATIVE_WIN32
+    #define GLFW_EXPOSE_NATIVE_WGL
+    #include <GLFW/glfw3native.h>
+    #include <wingdi.h>  // For wglGetCurrentContext, wglGetCurrentDC
+#endif
+
+// GLFW native header for platform-specific context access
+#if defined(_WIN32)
+    #define GLFW_EXPOSE_NATIVE_WGL
+    #define GLFW_EXPOSE_NATIVE_WIN32
+    #include <GLFW/glfw3native.h>
+#endif
+
 // OpenGL constants that may not be defined on some systems
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE 0x812F
@@ -29,6 +44,9 @@ extern "C" {
 #include "vg_lite.h"
 }
 
+// GL backend configuration
+#include "vglite_gl_config.h"
+
 // C++ standard library
 #include <chrono>
 #include <thread>
@@ -38,8 +56,17 @@ extern "C" {
 // ============================================================================
 static const int WINDOW_WIDTH = 640;
 static const int WINDOW_HEIGHT = 480;
+
+#if VGLITE_USE_GL_BACKEND
+// GL backend: render directly to window framebuffer
+static const int BUFFER_WIDTH = WINDOW_WIDTH;
+static const int BUFFER_HEIGHT = WINDOW_HEIGHT;
+#else
+// SW backend: render to offscreen buffer then upload to texture
 static const int BUFFER_WIDTH = 256;
 static const int BUFFER_HEIGHT = 256;
+#endif
+
 static const int COLOR_SWITCH_INTERVAL_MS = 1000;
 
 // Colors in ARGB format (0xAARRGGBB)
@@ -57,8 +84,11 @@ static const int NUM_COLORS = sizeof(COLORS) / sizeof(COLORS[0]);
 // ============================================================================
 // Global state
 // ============================================================================
+#if !VGLITE_USE_GL_BACKEND
+// SW backend only: buffer and texture for CPU rendering
 static vg_lite_buffer_t g_buffer = {0};
 static GLuint g_texture = 0;
+#endif
 
 // ============================================================================
 // Error handling
@@ -71,8 +101,9 @@ static void check_vg_lite_error(vg_lite_error_t error, const char* operation) {
 }
 
 // ============================================================================
-// OpenGL texture setup
+// OpenGL texture setup (SW backend only)
 // ============================================================================
+#if !VGLITE_USE_GL_BACKEND
 static void setup_texture() {
     glGenTextures(1, &g_texture);
     glBindTexture(GL_TEXTURE_2D, g_texture);
@@ -89,17 +120,19 @@ static void setup_texture() {
 }
 
 // ============================================================================
-// Update texture from vg_lite buffer
+// Update texture from vg_lite buffer (SW backend only)
 // ============================================================================
 static void update_texture() {
     glBindTexture(GL_TEXTURE_2D, g_texture);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, BUFFER_WIDTH, BUFFER_HEIGHT,
                     GL_BGRA, GL_UNSIGNED_BYTE, g_buffer.memory);
 }
+#endif
 
 // ============================================================================
-// Render texture to window
+// Render texture to window (SW backend only)
 // ============================================================================
+#if !VGLITE_USE_GL_BACKEND
 static void render_texture() {
     glClear(GL_COLOR_BUFFER_BIT);
     
@@ -130,6 +163,7 @@ static void render_texture() {
     
     glDisable(GL_TEXTURE_2D);
 }
+#endif
 
 // ============================================================================
 // GLFW error callback
@@ -152,9 +186,39 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 // ============================================================================
 int main(int argc, char** argv) {
     printf("=== vg_lite_clear Demo ===\n");
+#if VGLITE_USE_GL_BACKEND
+    printf("Backend: OpenGL (GPU direct rendering)\n");
+#else
+    printf("Backend: Software (CPU rendering with texture upload)\n");
+#endif
     printf("Window: %dx%d, Buffer: %dx%d\n", WINDOW_WIDTH, WINDOW_HEIGHT, BUFFER_WIDTH, BUFFER_HEIGHT);
     printf("Colors: %d, Interval: %dms\n", NUM_COLORS, COLOR_SWITCH_INTERVAL_MS);
     printf("Press ESC or close window to exit.\n\n");
+    
+    // ------------------------------------------------------------------------
+    // Initialize GLFW
+    // ------------------------------------------------------------------------
+    printf("Initializing GLFW...\n");
+    glfwSetErrorCallback(error_callback);
+    
+    if (!glfwInit()) {
+        fprintf(stderr, "Error: Failed to initialize GLFW\n");
+        return 1;
+    }
+    
+    // Create window
+    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, 
+                                          "vg_lite_clear Demo", nullptr, nullptr);
+    if (!window) {
+        fprintf(stderr, "Error: Failed to create GLFW window\n");
+        glfwTerminate();
+        return 1;
+    }
+    
+    glfwMakeContextCurrent(window);
+    glfwSetKeyCallback(window, key_callback);
+    
+    printf("GLFW window created successfully.\n");
     
     // ------------------------------------------------------------------------
     // Initialize vg_lite
@@ -163,10 +227,25 @@ int main(int argc, char** argv) {
     vg_lite_error_t error = vg_lite_init(BUFFER_WIDTH, BUFFER_HEIGHT);
     check_vg_lite_error(error, "vg_lite_init");
     
-    // ------------------------------------------------------------------------
-    // Allocate buffer
-    // ------------------------------------------------------------------------
-    printf("Allocating buffer...\n");
+#if VGLITE_USE_GL_BACKEND
+    // GL backend: Set external GL context (default framebuffer = 0)
+    printf("Setting up GL backend context...\n");
+    
+#if defined(_WIN32)
+    // Get the current WGL context - GLFW already made it current
+    HGLRC gl_context = wglGetCurrentContext();
+    HDC gl_dc = wglGetCurrentDC();
+    printf("WGL Context: %p, DC: %p\n", gl_context, gl_dc);
+#else
+    // For other platforms, use EGL/GLX
+    void* gl_context = nullptr;
+    void* gl_dc = nullptr;
+#endif
+    error = vg_lite_set_gl_context(nullptr, gl_dc, gl_context, 0);
+    check_vg_lite_error(error, "vg_lite_set_gl_context");
+#else
+    // SW backend: Allocate buffer
+    printf("Allocating SW buffer...\n");
     memset(&g_buffer, 0, sizeof(g_buffer));
     g_buffer.width = BUFFER_WIDTH;
     g_buffer.height = BUFFER_HEIGHT;
@@ -177,45 +256,30 @@ int main(int argc, char** argv) {
     
     printf("Buffer allocated: %dx%d, stride=%d, format=BGRA8888\n", 
            g_buffer.width, g_buffer.height, g_buffer.stride);
+#endif
     
-    // ------------------------------------------------------------------------
-    // Initialize GLFW
-    // ------------------------------------------------------------------------
-    printf("Initializing GLFW...\n");
-    glfwSetErrorCallback(error_callback);
-    
-    if (!glfwInit()) {
-        fprintf(stderr, "Error: Failed to initialize GLFW\n");
-        vg_lite_free(&g_buffer);
-        vg_lite_close();
-        return 1;
-    }
-    
-    // Create window
-    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, 
-                                          "vg_lite_clear Demo", nullptr, nullptr);
-    if (!window) {
-        fprintf(stderr, "Error: Failed to create GLFW window\n");
-        glfwTerminate();
-        vg_lite_free(&g_buffer);
-        vg_lite_close();
-        return 1;
-    }
-    
-    glfwMakeContextCurrent(window);
-    glfwSetKeyCallback(window, key_callback);
-    
-    // Setup OpenGL
+    // Setup OpenGL (SW backend needs texture, GL backend just clears background)
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    setup_texture();
     
-    printf("GLFW window created successfully.\n\n");
+#if !VGLITE_USE_GL_BACKEND
+    setup_texture();
+#endif
+    
+    printf("Initialization complete.\n\n");
     
     // ------------------------------------------------------------------------
     // Main loop - color cycling
     // ------------------------------------------------------------------------
     int color_index = 0;
     int cycle_count = 0;
+    
+#if VGLITE_USE_GL_BACKEND
+    // GL backend: Dummy buffer for canvas target (memory unused, renders to FBO)
+    vg_lite_buffer_t fb_buffer = {0};
+    fb_buffer.width = WINDOW_WIDTH;
+    fb_buffer.height = WINDOW_HEIGHT;
+    fb_buffer.format = VG_LITE_BGRA8888;
+#endif
     
     while (!glfwWindowShouldClose(window)) {
         // Get current color
@@ -227,7 +291,16 @@ int main(int argc, char** argv) {
         
         printf("Cycle %d: %s (0x%08X)\n", cycle_count + 1, color_name, color);
         
-        // Clear buffer with current color
+#if VGLITE_USE_GL_BACKEND
+        // GL backend: Clear directly to default framebuffer
+        error = vg_lite_clear(&fb_buffer, nullptr, color);
+        check_vg_lite_error(error, "vg_lite_clear");
+        
+        // Finish rendering (draws to GL FBO)
+        error = vg_lite_finish();
+        check_vg_lite_error(error, "vg_lite_finish");
+#else
+        // SW backend: Clear to buffer, then upload to texture
         error = vg_lite_clear(&g_buffer, nullptr, color);
         check_vg_lite_error(error, "vg_lite_clear");
         
@@ -240,6 +313,8 @@ int main(int argc, char** argv) {
         
         // Render to window
         render_texture();
+#endif
+        
         glfwSwapBuffers(window);
         
         // Poll events while waiting
@@ -275,19 +350,22 @@ int main(int argc, char** argv) {
     // ------------------------------------------------------------------------
     printf("\nCleaning up...\n");
     
-    // Cleanup OpenGL
+#if !VGLITE_USE_GL_BACKEND
+    // Cleanup OpenGL texture (SW backend only)
     if (g_texture) {
         glDeleteTextures(1, &g_texture);
     }
+    
+    // Free buffer (SW backend only)
+    error = vg_lite_free(&g_buffer);
+    check_vg_lite_error(error, "vg_lite_free");
+#endif
     
     // Cleanup GLFW
     glfwDestroyWindow(window);
     glfwTerminate();
     
     // Cleanup vg_lite
-    error = vg_lite_free(&g_buffer);
-    check_vg_lite_error(error, "vg_lite_free");
-    
     error = vg_lite_close();
     check_vg_lite_error(error, "vg_lite_close");
     

@@ -6,6 +6,9 @@
 #ifndef TVG_CONFIG_H
 #define TVG_CONFIG_H
 
+/* VGLite GL Backend Configuration */
+#include "../../../vglite_gl_config.h"
+
 /* ThorVG Version */
 #define THORVG_VERSION_STRING "1.0.2"
 
@@ -14,7 +17,11 @@
 
 /* Engines */
 #define THORVG_SW_RASTER_SUPPORT 1
-/* #undef THORVG_GL_RASTER_SUPPORT */
+#if VGLITE_USE_GL_BACKEND
+    #define THORVG_GL_RASTER_SUPPORT 1
+#else
+    /* #undef THORVG_GL_RASTER_SUPPORT */
+#endif
 /* #undef THORVG_WG_RASTER_SUPPORT */
 
 /* Partial Rendering */

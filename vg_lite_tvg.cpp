@@ -9,8 +9,8 @@
  *      INCLUDES
  *********************/
 #include "vglite_config.h"
-
 #include "vg_lite.h"
+
 #include "libs/thorvg-1.0.2/inc/thorvg.h"
 #include <float.h>
 #include <math.h>
@@ -23,9 +23,12 @@
     #include <libyuv/convert_argb.h>
 #endif
 
+// Include GL backend configuration
+#include "vglite_gl_config.h"
+
 /*********************
  *      DEFINES
- *********************/
+  *********************/
 
 #define TVG_COLOR(COLOR) B(COLOR), G(COLOR), R(COLOR), A(COLOR)
 #define TVG_IS_VG_FMT_SUPPORT(fmt) ((fmt) == VG_LITE_BGRA8888 || (fmt) == VG_LITE_BGRX8888)
@@ -152,13 +155,31 @@ typedef struct {
 class vg_lite_ctx
 {
     public:
-        SwCanvas* canvas;  // ThorVG 1.0.2 uses raw pointers
+        TVG_GL_CANVAS* canvas;  // Conditionally SwCanvas or GlCanvas
         void * target_buffer;
         void * tvg_target_buffer;
         vg_lite_uint32_t target_px_size;
         vg_lite_buffer_format_t target_format;
         vg_lite_rectangle_t scissor_rect;
         bool scissor_is_set;
+
+#if VGLITE_USE_GL_BACKEND
+        // GL context members (for external context management)
+        void* gl_display;
+        void* gl_surface;
+        void* gl_context;
+        int32_t gl_fbo_id;
+        uint32_t gl_width;
+        uint32_t gl_height;
+#endif
+
+    private:
+        std::vector<vg_lite_uint32_t> src_buffer;
+        std::vector<vg_lite_uint32_t> dest_buffer;
+        vg_lite_uint32_t clut_2colors[2];
+        vg_lite_uint32_t clut_4colors[4];
+        vg_lite_uint32_t clut_16colors[16];
+        vg_lite_uint32_t clut_256colors[256];
 
     public:
         vg_lite_ctx()
@@ -169,12 +190,24 @@ class vg_lite_ctx
             , target_format { VG_LITE_BGRA8888 }
             , scissor_rect { 0, 0, 0, 0 }
             , scissor_is_set { false }
+#if VGLITE_USE_GL_BACKEND
+            , gl_display { nullptr }
+            , gl_surface { nullptr }
+            , gl_context { nullptr }
+            , gl_fbo_id { 0 }
+            , gl_width { 0 }
+            , gl_height { 0 }
+#endif
             , clut_2colors { 0 }
             , clut_4colors { 0 }
             , clut_16colors { 0 }
             , clut_256colors { 0 }
         {
+#if VGLITE_USE_GL_BACKEND
+            canvas = GlCanvas::gen();
+#else
             canvas = SwCanvas::gen();
+#endif
         }
         
         ~vg_lite_ctx()
@@ -254,16 +287,6 @@ class vg_lite_ctx
             static vg_lite_ctx instance;
             return &instance;
         }
-
-    private:
-        /*  */
-        std::vector<vg_lite_uint32_t> src_buffer;
-        std::vector<vg_lite_uint32_t> dest_buffer;
-
-        vg_lite_uint32_t clut_2colors[2];
-        vg_lite_uint32_t clut_4colors[4];
-        vg_lite_uint32_t clut_16colors[16];
-        vg_lite_uint32_t clut_256colors[256];
 };
 
 template <typename DEST_TYPE, typename SRC_TYPE>
@@ -723,6 +746,18 @@ extern "C" {
         return VG_LITE_SUCCESS;
     }
 
+#if VGLITE_USE_GL_BACKEND
+    vg_lite_error_t vg_lite_set_gl_context(void* display, void* surface, void* context, int32_t fbo_id)
+    {
+        auto ctx = vg_lite_ctx::get_instance();
+        ctx->gl_display = display;
+        ctx->gl_surface = surface;
+        ctx->gl_context = context;
+        ctx->gl_fbo_id = fbo_id;
+        return VG_LITE_SUCCESS;
+    }
+#endif
+
     static void picture_bgra8888_to_bgr565(vg_color16_t * dest, const vg_color32_t * src, vg_lite_uint32_t px_size)
     {
         while(px_size--) {
@@ -850,6 +885,13 @@ extern "C" {
         TVG_CHECK_RETURN_VG_ERROR(ctx->canvas->sync());
         TVG_CHECK_RETURN_VG_ERROR(ctx->canvas->remove());
 
+#if VGLITE_USE_GL_BACKEND
+        /* GL backend: rendering is done directly to FBO, no format conversion needed.
+         * The GlCanvas renders in ABGR8888S format directly to the GL FBO.
+         */
+        (void)ctx; /* Suppress unused variable warning */
+#else
+        /* SW backend: may need format conversion from internal ARGB8888 to target format */
         /* make sure target buffer is valid */
         LV_ASSERT_NULL(ctx->target_buffer);
 
@@ -923,6 +965,7 @@ extern "C" {
                 LV_ASSERT(false);
                 break;
         }
+#endif
 
         /* finish convert, clean target buffer info */
         ctx->target_buffer = nullptr;
@@ -2616,6 +2659,63 @@ static Result canvas_set_target(vg_lite_ctx * ctx, vg_lite_buffer_t * target)
     ctx->target_format = target->format;
     ctx->target_px_size = target->width * target->height;
 
+#if VGLITE_USE_GL_BACKEND
+    /* GL backend: use external GL context for rendering */
+    ctx->gl_width = target->width;
+    ctx->gl_height = target->height;
+
+    /* Store FBO ID from target if provided (for per-buffer FBO management) */
+    int32_t fbo_id = ctx->gl_fbo_id;
+    if(target->handle) {
+        /* Allow per-target FBO ID via handle field */
+        fbo_id = (int32_t)(intptr_t)target->handle;
+    }
+
+    /* Prevent repeated target setting */
+    static void* last_display = nullptr;
+    static void* last_surface = nullptr;
+    static void* last_context = nullptr;
+    static int32_t last_fbo_id = 0;
+    static uint32_t last_width = 0;
+    static uint32_t last_height = 0;
+
+    if(last_display == ctx->gl_display &&
+       last_surface == ctx->gl_surface &&
+       last_context == ctx->gl_context &&
+       last_fbo_id == fbo_id &&
+       last_width == target->width &&
+       last_height == target->height) {
+        return Result::Success;
+    }
+
+    last_display = ctx->gl_display;
+    last_surface = ctx->gl_surface;
+    last_context = ctx->gl_context;
+    last_fbo_id = fbo_id;
+    last_width = target->width;
+    last_height = target->height;
+
+    /* GlCanvas::target uses ABGR8888S color space (GL_RGBA8) */
+    Result result;
+    if (ctx->gl_context != nullptr) {
+        result = ctx->canvas->target(
+                                    ctx->gl_display,
+                                    ctx->gl_surface,
+                                    ctx->gl_context,
+                                    fbo_id,
+                                    target->width,
+                                    target->height,
+                                    ColorSpace::ABGR8888S);
+    } else {
+        /* No GL context set - this shouldn't happen in GL mode */
+        VGLITE_LOG_ERROR("GL backend enabled but no GL context provided");
+        return Result::InvalidArguments;
+    }
+
+    if(result != Result::Success) return result;
+
+    /* SW backend: use software buffer for rendering */
+#else
     void * canvas_target_buffer;
     uint32_t stride = 0;
 
@@ -2647,6 +2747,7 @@ static Result canvas_set_target(vg_lite_ctx * ctx, vg_lite_buffer_t * target)
                                 target->width,
                                 target->height,
                                 ColorSpace::ARGB8888));
+#endif
 
     if(ctx->scissor_is_set) {
         TVG_CHECK_RETURN_RESULT(

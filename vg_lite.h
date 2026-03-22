@@ -46,6 +46,9 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+/* Include GL backend configuration for conditional compilation */
+#include "vglite_gl_config.h"
+
 
 /*  VGLite API Constants *******************************************************************************************************************/
 
@@ -941,6 +944,18 @@ vg_lite_error_t vg_lite_init(vg_lite_int32_t tess_width, vg_lite_int32_t tess_he
 
 /* Destroy a vglite context. */
 vg_lite_error_t vg_lite_close(void);
+
+#if VGLITE_USE_GL_BACKEND
+/* Set GL context for rendering (only available when VGLITE_USE_GL_BACKEND=1).
+ * This allows external GL context management for GPU rendering.
+ * @param display The platform-specific display handle (EGLDisplay for EGL). Set NULL for other systems.
+ * @param surface The platform-specific surface handle (EGLSurface for EGL, HDC for WGL). Set NULL for other systems.
+ * @param context The OpenGL context to be used for rendering.
+ * @param fbo_id The GL target ID (FBO ID). A value of 0 specifies the main surface.
+ * @return VG_LITE_SUCCESS on success, error code otherwise.
+ */
+vg_lite_error_t vg_lite_set_gl_context(void* display, void* surface, void* context, int32_t fbo_id);
+#endif
 
 /* Get the VGLite driver information. */
 vg_lite_error_t vg_lite_get_info(vg_lite_info_t * info);

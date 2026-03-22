@@ -76,21 +76,52 @@ set(THORVG_RAW_SOURCES
     ${THORVG_SRC_DIR}/loaders/raw/tvgRawLoader.cpp
 )
 
-# Create ThorVG static library
-add_library(thorvg STATIC
-    ${THORVG_SOURCES}
-    ${THORVG_COMMON_SOURCES}
-    ${THORVG_SW_SOURCES}
-    ${THORVG_SVG_SOURCES}
-    ${THORVG_LOTTIE_SOURCES}
-    ${THORVG_RAW_SOURCES}
+# ThorVG GL Engine sources (from src/renderer/gl_engine/)
+set(THORVG_GL_SOURCES
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGl.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlRenderer.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlRenderTask.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlRenderPass.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlRenderTarget.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlProgram.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlShader.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlShaderSrc.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlGpuBuffer.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlGeometry.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlTessellator.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlSolidBatch.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlEffect.cpp
+    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlRenderTask.cpp
 )
+
+# Create ThorVG static library
+if(VGLITE_USE_GL_BACKEND)
+    add_library(thorvg STATIC
+        ${THORVG_SOURCES}
+        ${THORVG_COMMON_SOURCES}
+        ${THORVG_SW_SOURCES}
+        ${THORVG_GL_SOURCES}
+        ${THORVG_SVG_SOURCES}
+        ${THORVG_LOTTIE_SOURCES}
+        ${THORVG_RAW_SOURCES}
+    )
+else()
+    add_library(thorvg STATIC
+        ${THORVG_SOURCES}
+        ${THORVG_COMMON_SOURCES}
+        ${THORVG_SW_SOURCES}
+        ${THORVG_SVG_SOURCES}
+        ${THORVG_LOTTIE_SOURCES}
+        ${THORVG_RAW_SOURCES}
+    )
+endif()
 
 target_include_directories(thorvg PUBLIC
     ${THORVG_INC_DIR}
     ${THORVG_SRC_DIR}
     ${THORVG_SRC_DIR}/renderer
     ${THORVG_SRC_DIR}/renderer/sw_engine
+    ${THORVG_SRC_DIR}/renderer/gl_engine
     ${THORVG_SRC_DIR}/loaders/svg
     ${THORVG_SRC_DIR}/loaders/lottie
     ${THORVG_SRC_DIR}/loaders/raw
@@ -109,6 +140,16 @@ target_compile_definitions(thorvg PRIVATE
     TVG_STATIC
     __STDC_FORMAT_MACROS
 )
+
+# Enable GL backend if requested
+if(VGLITE_USE_GL_BACKEND)
+    target_compile_definitions(thorvg PRIVATE
+        VGLITE_USE_GL_BACKEND
+        TVG_ENABLE_GL_ENGINE
+        THORVG_GL_TARGET_GL  # Use desktop GL, not GLES
+    )
+    message(STATUS "ThorVG GL engine enabled")
+endif()
 
 # Platform-specific settings
 if(WIN32)
