@@ -11,6 +11,7 @@
 #include "vg_lite.h"
 #include "vg_lite_util.h"
 #include "tiger_paths.h"
+#include "image_compare.h"
 
 namespace {
 
@@ -102,6 +103,10 @@ TEST_F(TigerTest, Tiger) {
     
     // Verify buffer was rendered
     EXPECT_NE(buffer.memory, nullptr);
+    
+    // Compare with golden reference
+    EXPECT_TRUE(vglite::test::CompareWithReference(fb, "tiger/golden/tiger.png", 0.01f))
+        << "Tiger rendering does not match golden reference";
 }
 
 } // anonymous namespace

@@ -90,15 +90,24 @@ bool SaveBufferToPNG(const vg_lite_buffer_t* buffer, const std::string& path) {
     std::vector<uint8_t> imageData(width * height * 4);
     uint8_t* src = static_cast<uint8_t*>(buffer->memory);
     
-    // Copy with stride handling and convert BGRA to RGBA
+    // Copy with stride handling and convert to RGBA for PNG
     for (int y = 0; y < height; ++y) {
         const uint8_t* row = src + y * stride;
         for (int x = 0; x < width; ++x) {
-            // VGLite uses BGRA8888 format, PNG expects RGBA
-            imageData[(y * width + x) * 4 + 0] = row[x * 4 + 2]; // R <- B
-            imageData[(y * width + x) * 4 + 1] = row[x * 4 + 1]; // G
-            imageData[(y * width + x) * 4 + 2] = row[x * 4 + 0]; // B <- R
-            imageData[(y * width + x) * 4 + 3] = row[x * 4 + 3]; // A
+            // Handle different buffer formats
+            if (buffer->format == VG_LITE_BGRA8888 || buffer->format == VG_LITE_BGRX8888) {
+                // BGRA to RGBA
+                imageData[(y * width + x) * 4 + 0] = row[x * 4 + 2]; // R
+                imageData[(y * width + x) * 4 + 1] = row[x * 4 + 1]; // G
+                imageData[(y * width + x) * 4 + 2] = row[x * 4 + 0]; // B
+                imageData[(y * width + x) * 4 + 3] = row[x * 4 + 3]; // A
+            } else {
+                // RGBA to RGBA (no conversion needed)
+                imageData[(y * width + x) * 4 + 0] = row[x * 4 + 0]; // R
+                imageData[(y * width + x) * 4 + 1] = row[x * 4 + 1]; // G
+                imageData[(y * width + x) * 4 + 2] = row[x * 4 + 2]; // B
+                imageData[(y * width + x) * 4 + 3] = row[x * 4 + 3]; // A
+            }
         }
     }
     
@@ -239,8 +248,33 @@ bool CompareWithReference(const vg_lite_buffer_t* buffer, const std::string& ref
         return false;
     }
     
+    // Convert buffer data to BGRA for comparison (same format as refData from LoadPNGToBuffer)
+    std::vector<uint8_t> bufferBGRA(buffer->width * buffer->height * 4);
+    uint8_t* src = static_cast<uint8_t*>(buffer->memory);
+    const int stride = buffer->stride;
+    
+    for (int y = 0; y < buffer->height; ++y) {
+        const uint8_t* row = src + y * stride;
+        for (int x = 0; x < buffer->width; ++x) {
+            int idx = (y * buffer->width + x) * 4;
+            if (buffer->format == VG_LITE_BGRA8888 || buffer->format == VG_LITE_BGRX8888) {
+                // Already BGRA, copy as-is
+                bufferBGRA[idx + 0] = row[x * 4 + 0]; // B
+                bufferBGRA[idx + 1] = row[x * 4 + 1]; // G
+                bufferBGRA[idx + 2] = row[x * 4 + 2]; // R
+                bufferBGRA[idx + 3] = row[x * 4 + 3]; // A
+            } else {
+                // RGBA to BGRA
+                bufferBGRA[idx + 0] = row[x * 4 + 2]; // B <- R
+                bufferBGRA[idx + 1] = row[x * 4 + 1]; // G
+                bufferBGRA[idx + 2] = row[x * 4 + 0]; // R <- B
+                bufferBGRA[idx + 3] = row[x * 4 + 3]; // A
+            }
+        }
+    }
+    
     // Compare buffers
-    bool match = CompareBuffers(static_cast<uint8_t*>(buffer->memory), refData,
+    bool match = CompareBuffers(bufferBGRA.data(), refData,
                                buffer->width, buffer->height, tolerance);
     
     if (!match) {
