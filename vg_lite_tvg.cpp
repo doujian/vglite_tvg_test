@@ -714,7 +714,12 @@ extern "C" {
 
     vg_lite_error_t vg_lite_close(void)
     {
-        TVG_CHECK_RETURN_VG_ERROR(Initializer::term());
+        /* Ignore InsufficientCondition error - means ThorVG was not initialized or already terminated */
+        Result res = Initializer::term();
+        if(res != Result::Success && res != Result::InsufficientCondition) {
+            VGLITE_LOG_ERROR("Executed 'Initializer::term()' error: %d", (int)res);
+            return vg_lite_error_conv(res);
+        }
         return VG_LITE_SUCCESS;
     }
 
@@ -724,6 +729,33 @@ extern "C" {
             dest->red = src->red * 0x1F / 0xFF;
             dest->green = src->green * 0x3F / 0xFF;
             dest->blue = src->blue * 0x1F / 0xFF;
+            src++;
+            dest++;
+        }
+    }
+
+    static void picture_bgra8888_to_rgb565(vg_color16_t * dest, const vg_color32_t * src, vg_lite_uint32_t px_size)
+    {
+        while(px_size--) {
+            /* Swap R and B channels for RGB565 format */
+            dest->red = src->blue * 0x1F / 0xFF;
+            dest->green = src->green * 0x3F / 0xFF;
+            dest->blue = src->red * 0x1F / 0xFF;
+            src++;
+            dest++;
+        }
+    }
+
+    static void picture_bgra8888_to_rgba8888(uint32_t * dest, const vg_color32_t * src, vg_lite_uint32_t px_size)
+    {
+        while(px_size--) {
+            /* Convert BGRA to RGBA by swapping R and B channels */
+            uint8_t r = src->red;
+            uint8_t g = src->green;
+            uint8_t b = src->blue;
+            uint8_t a = src->alpha;
+            /* RGBA format: R in LSB, A in MSB */
+            *dest = (a << 24) | (b << 16) | (g << 8) | r;
             src++;
             dest++;
         }
@@ -829,6 +861,12 @@ extern "C" {
                     (const vg_color32_t *)ctx->get_temp_target_buffer(),
                     ctx->target_px_size);
                 break;
+            case VG_LITE_RGB565:
+                picture_bgra8888_to_rgb565(
+                    (vg_color16_t *)ctx->target_buffer,
+                    (const vg_color32_t *)ctx->get_temp_target_buffer(),
+                    ctx->target_px_size);
+                break;
             case VG_LITE_BGRA5658:
                 picture_bgra8888_to_bgra5658(
                     (vg_color16_alpha_t *)ctx->target_buffer,
@@ -871,6 +909,14 @@ extern "C" {
             case VG_LITE_BGRA8888:
             case VG_LITE_BGRX8888:
                 /* No conversion required. */
+                break;
+            case VG_LITE_RGBA8888:
+            case VG_LITE_RGBX8888:
+                /* Convert BGRA to RGBA (swap R and B channels) */
+                picture_bgra8888_to_rgba8888(
+                    (uint32_t *)ctx->target_buffer,
+                    (const vg_color32_t *)ctx->get_temp_target_buffer(),
+                    ctx->target_px_size);
                 break;
             default:
                 LV_LOG_ERROR("unsupported format: %d", ctx->target_format);
