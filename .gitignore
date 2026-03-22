@@ -13,6 +13,9 @@ tests/build/
 *.opensdf
 *.sdf
 *.pdb
+.idea/
+*.iml
+*.code-workspace
 
 # Compiled files
 *.obj
@@ -23,6 +26,17 @@ tests/build/
 *.dll
 *.so
 *.dylib
+*.ilk
+*.exp
+
+# Android build outputs
+*.apk
+*.aab
+*.idsig
+*.apks
+*.dex
+*.class
+*.aar
 
 # CMake cache
 CMakeCache.txt
@@ -35,12 +49,29 @@ Makefile
 *.tmp
 *.bak
 *~
+nul
+
+# Build logs
+build.log
+*.build.log
+cmake.log
 
 # OS files
 .DS_Store
 Thumbs.db
 
+# Android build directories
+**/apk_build/
+**/build_android/
+dex_src/
+debug.keystore
+*.keystore
+
 # Test output images
 tests/output/
 *.png
 !tests/vector.png
+
+# User-specific configuration
+build_config.local.bat
+.env.local

@@ -66,6 +66,7 @@ extern "C" {
 
 #define VGLITE_ASSERT(expr)         assert(expr)
 #define VGLITE_ASSERT_NULL(expr)    assert((expr) == NULL)
+#define VGLITE_ASSERT_NOT_NULL(expr) assert((expr) != NULL)
 
 /*============================
  * Utility Macros
@@ -99,6 +100,7 @@ extern "C" {
 /* Assertion macros - map to VGLITE assertions */
 #define LV_ASSERT            VGLITE_ASSERT
 #define LV_ASSERT_NULL       VGLITE_ASSERT_NULL
+#define LV_ASSERT_NOT_NULL   VGLITE_ASSERT_NOT_NULL
 
 /* Utility macros - map to VGLITE utilities */
 #define VGLITE_UNUSED(x)            ((void)(x))

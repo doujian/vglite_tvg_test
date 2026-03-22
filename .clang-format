@@ -1,0 +1,215 @@
+# =============================================================================
+# .clang-format for VGLite ThorVG Project
+# =============================================================================
+#
+# This configuration defines the coding style for C/C++ files in the VGLite
+# ThorVG project. It is based on LLVM style with customizations to match
+# the existing codebase conventions.
+#
+# Usage:
+#   clang-format -i <file>           # Format a single file
+#   clang-format -style=file <file>  # Use this config explicitly
+#   git clang-format                 # Format changed lines in git
+#
+# =============================================================================
+
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+# =============================================================================
+# Indentation
+# =============================================================================
+# 4-space indentation matches the existing codebase (vg_lite_matrix.c,
+# vg_lite_tvg.cpp, etc.)
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# Continuation indentation for multi-line statements
+ContinuationIndentWidth: 4
+IndentCaseLabels: true
+IndentCaseBlocks: false
+IndentGotoLabels: true
+IndentPPDirectives: None
+IndentExternBlock: AfterExternBlock
+IndentWrappedFunctionNames: false
+NamespaceIndentation: None
+
+# =============================================================================
+# Line Length
+# =============================================================================
+# 120 characters provides reasonable flexibility while keeping code readable
+# Existing codebase typically stays within this limit
+ColumnLimit: 120
+
+# =============================================================================
+# Braces
+# =============================================================================
+# Attach style: opening brace on same line as control statement
+# This matches the existing style (e.g., if() {, for() {)
+BreakBeforeBraces: Attach
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: false
+  AfterControlStatement: Never
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  BeforeCatch: false
+  BeforeElse: false
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+
+# =============================================================================
+# Function Formatting
+# =============================================================================
+# Allow empty functions on a single line (common for stubs/placeholders)
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortLambdasOnASingleLine: All
+
+# =============================================================================
+# Includes
+# =============================================================================
+# Sort includes but preserve grouping structure
+# The codebase uses section comments like "/***** INCLUDES *****/"
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+IncludeCategories:
+  # System headers
+  - Regex: '<[a-z_]+>'
+    Priority: 1
+  # STL headers
+  - Regex: '<[a-z_/]+>'
+    Priority: 2
+  # Project headers (quoted)
+  - Regex: '".*"'
+    Priority: 3
+
+# =============================================================================
+# Pointer and Reference Alignment
+# =============================================================================
+# Right alignment: "Type *name" style
+# Existing code uses: vg_lite_matrix_t * matrix (space on both sides)
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+DerivePointerAlignment: false
+
+# =============================================================================
+# Space Formatting
+# =============================================================================
+# Control spacing around various tokens to match existing style
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceAroundPointerQualifiers: Default
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInAngles: Never
+SpacesInCStyleCastParentheses: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: true
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# =============================================================================
+# Alignment
+# =============================================================================
+# Align consecutive declarations and assignments for readability
+AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Right
+AlignConsecutiveAssignments: false
+AlignConsecutiveBitFields: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: false
+AlignEscapedNewlines: Left
+AlignOperands: Align
+AlignTrailingComments: true
+
+# =============================================================================
+# Breaking and Wrapping
+# =============================================================================
+# Configure how lines are broken when they exceed the column limit
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: MultiLine
+BreakBeforeBinaryOperators: None
+BreakBeforeConceptDeclarations: true
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: true
+
+# =============================================================================
+# Constructor Initializers
+# =============================================================================
+# Format constructor initializer lists
+PackConstructorInitializers: NextLine
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+ConstructorInitializerIndentWidth: 4
+
+# =============================================================================
+# Other Formatting Options
+# =============================================================================
+# Additional formatting preferences
+AccessModifierOffset: -4
+BinPackArguments: true
+BinPackParameters: true
+CompactNamespaces: false
+Cpp11BracedListStyle: true
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: LogicalBlock
+FixNamespaceComments: true
+InsertBraces: false
+InsertTrailingCommas: None
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+PenaltyBreakAssignment: 2
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment: 300
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakString: 1000
+PenaltyBreakTemplateDeclaration: 10
+PenaltyExcessCharacter: 1000000
+PenaltyIndentedWhitespace: 0
+PenaltyReturnTypeOnItsOwnLine: 60
+QualifierAlignment: Leave
+ReflowComments: true
+SeparateDefinitionBlocks: Leave
+SortUsingDeclarations: true
+UseCRLF: false
+
+# =============================================================================
+# Standard
+# =============================================================================
+# Use C++11/14/17/20 features as appropriate
+Standard: c++17
+
+# =============================================================================
+# Disabling Formatting (for special sections)
+# =============================================================================
+# The codebase uses "/* clang-format off */" and "/* clang-format on */"
+# markers in vg_lite_tvg.cpp around macro definitions that should not
+# be reformatted. This is supported by default.
+
+...

@@ -11,9 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ============================================================================
 # Paths
 # ============================================================================
-# From: examples/android/app/src/main/cpp
-# To:   vglite_thorvg (6 levels up)
-set(VGLITE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../..)
+# From: examples/demos/clear_demo/android/app/src/main/cpp
+# To:   vglite_thorvg (9 levels up)
+set(VGLITE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../../..)
 set(THORVG_ROOT ${VGLITE_ROOT}/libs/thorvg-1.0.2)
 set(THORVG_SRC_DIR ${THORVG_ROOT}/src)
 set(THORVG_INC_DIR ${THORVG_ROOT}/inc)

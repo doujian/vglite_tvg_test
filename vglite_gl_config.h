@@ -48,6 +48,12 @@
 #if VGLITE_PLATFORM_ANDROID
     /* Android uses OpenGL ES */
     #define THORVG_GL_TARGET_GLES 1
+#elif VGLITE_PLATFORM_WINDOWS
+    /* Windows uses desktop OpenGL (WGL) */
+    #define THORVG_GL_TARGET_GL 1
+#else
+    /* Linux/other platforms - default to desktop OpenGL */
+    #define THORVG_GL_TARGET_GL 1
 #endif
 
 /* Conditional canvas type */

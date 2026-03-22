@@ -1,4 +1,5 @@
 # ThorVG 1.0.2 Library Build Configuration
+# Support for dual ThorVG builds (thorvg_gl + thorvg_sw)
 cmake_minimum_required(VERSION 3.14)
 
 project(thorvg CXX)
@@ -91,12 +92,18 @@ set(THORVG_GL_SOURCES
     ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlTessellator.cpp
     ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlSolidBatch.cpp
     ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlEffect.cpp
-    ${THORVG_SRC_DIR}/renderer/gl_engine/tvgGlRenderTask.cpp
 )
 
-# Create ThorVG static library
-if(VGLITE_USE_GL_BACKEND)
-    add_library(thorvg STATIC
+# ============================================================================
+# Dual ThorVG Build Mode
+# ============================================================================
+if(VGLITE_BUILD_DUAL_THORVG)
+    message(STATUS "Building ThorVG in DUAL mode (thorvg_gl + thorvg_sw)")
+    
+    # ------------------------------------------------------------------------
+    # thorvg_gl - includes GL engine
+    # ------------------------------------------------------------------------
+    add_library(thorvg_gl STATIC
         ${THORVG_SOURCES}
         ${THORVG_COMMON_SOURCES}
         ${THORVG_SW_SOURCES}
@@ -105,8 +112,41 @@ if(VGLITE_USE_GL_BACKEND)
         ${THORVG_LOTTIE_SOURCES}
         ${THORVG_RAW_SOURCES}
     )
-else()
-    add_library(thorvg STATIC
+    
+    target_include_directories(thorvg_gl PUBLIC
+        ${THORVG_INC_DIR}
+        ${THORVG_SRC_DIR}
+        ${THORVG_SRC_DIR}/renderer
+        ${THORVG_SRC_DIR}/renderer/sw_engine
+        ${THORVG_SRC_DIR}/renderer/gl_engine
+        ${THORVG_SRC_DIR}/loaders/svg
+        ${THORVG_SRC_DIR}/loaders/lottie
+        ${THORVG_SRC_DIR}/loaders/raw
+        ${THORVG_SRC_DIR}/common
+        ${THORVG_SRC_DIR}/loaders/lottie/rapidjson/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../..
+    )
+    
+    target_compile_features(thorvg_gl PUBLIC cxx_std_17)
+    
+    target_compile_definitions(thorvg_gl PRIVATE
+        TVG_ENABLE_SVG_LOADER
+        TVG_ENABLE_LOTTIE_LOADER
+        TVG_ENABLE_SW_ENGINE
+        TVG_ENABLE_GL_ENGINE
+        VGLITE_USE_GL_BACKEND
+        THORVG_GL_TARGET_GL
+        TVG_STATIC
+        __STDC_FORMAT_MACROS
+        _CRT_SECURE_NO_WARNINGS
+        _CRT_NONSTDC_NO_WARNINGS
+        NOMINMAX
+    )
+    
+    # ------------------------------------------------------------------------
+    # thorvg_sw - software only (no GL engine)
+    # ------------------------------------------------------------------------
+    add_library(thorvg_sw STATIC
         ${THORVG_SOURCES}
         ${THORVG_COMMON_SOURCES}
         ${THORVG_SW_SOURCES}
@@ -114,51 +154,101 @@ else()
         ${THORVG_LOTTIE_SOURCES}
         ${THORVG_RAW_SOURCES}
     )
-endif()
-
-target_include_directories(thorvg PUBLIC
-    ${THORVG_INC_DIR}
-    ${THORVG_SRC_DIR}
-    ${THORVG_SRC_DIR}/renderer
-    ${THORVG_SRC_DIR}/renderer/sw_engine
-    ${THORVG_SRC_DIR}/renderer/gl_engine
-    ${THORVG_SRC_DIR}/loaders/svg
-    ${THORVG_SRC_DIR}/loaders/lottie
-    ${THORVG_SRC_DIR}/loaders/raw
-    ${THORVG_SRC_DIR}/common
-    ${THORVG_SRC_DIR}/loaders/lottie/rapidjson/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../..  # For vglite_config.h
-)
-
-target_compile_features(thorvg PUBLIC cxx_std_17)
-
-# ThorVG compile definitions
-target_compile_definitions(thorvg PRIVATE
-    TVG_ENABLE_SVG_LOADER
-    TVG_ENABLE_LOTTIE_LOADER
-    TVG_ENABLE_SW_ENGINE
-    TVG_STATIC
-    __STDC_FORMAT_MACROS
-)
-
-# Enable GL backend if requested
-if(VGLITE_USE_GL_BACKEND)
-    target_compile_definitions(thorvg PRIVATE
-        VGLITE_USE_GL_BACKEND
-        TVG_ENABLE_GL_ENGINE
-        THORVG_GL_TARGET_GL  # Use desktop GL, not GLES
+    
+    target_include_directories(thorvg_sw PUBLIC
+        ${THORVG_INC_DIR}
+        ${THORVG_SRC_DIR}
+        ${THORVG_SRC_DIR}/renderer
+        ${THORVG_SRC_DIR}/renderer/sw_engine
+        ${THORVG_SRC_DIR}/loaders/svg
+        ${THORVG_SRC_DIR}/loaders/lottie
+        ${THORVG_SRC_DIR}/loaders/raw
+        ${THORVG_SRC_DIR}/common
+        ${THORVG_SRC_DIR}/loaders/lottie/rapidjson/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../..
     )
-    message(STATUS "ThorVG GL engine enabled")
-endif()
-
-# Platform-specific settings
-if(WIN32)
-    target_compile_definitions(thorvg PRIVATE
+    
+    target_compile_features(thorvg_sw PUBLIC cxx_std_17)
+    
+    target_compile_definitions(thorvg_sw PRIVATE
+        TVG_ENABLE_SVG_LOADER
+        TVG_ENABLE_LOTTIE_LOADER
+        TVG_ENABLE_SW_ENGINE
+        TVG_STATIC
+        __STDC_FORMAT_MACROS
         _CRT_SECURE_NO_WARNINGS
         _CRT_NONSTDC_NO_WARNINGS
         NOMINMAX
     )
+    
+    # Export both libraries
+    set(THORVG_GL_LIBRARY thorvg_gl PARENT_SCOPE)
+    set(THORVG_SW_LIBRARY thorvg_sw PARENT_SCOPE)
+    
+# ============================================================================
+# Single ThorVG Build Mode (backward compatible)
+# ============================================================================
+else()
+    message(STATUS "Building ThorVG in SINGLE mode")
+    
+    # Create ThorVG static library
+    if(VGLITE_USE_GL_BACKEND)
+        add_library(thorvg STATIC
+            ${THORVG_SOURCES}
+            ${THORVG_COMMON_SOURCES}
+            ${THORVG_SW_SOURCES}
+            ${THORVG_GL_SOURCES}
+            ${THORVG_SVG_SOURCES}
+            ${THORVG_LOTTIE_SOURCES}
+            ${THORVG_RAW_SOURCES}
+        )
+    else()
+        add_library(thorvg STATIC
+            ${THORVG_SOURCES}
+            ${THORVG_COMMON_SOURCES}
+            ${THORVG_SW_SOURCES}
+            ${THORVG_SVG_SOURCES}
+            ${THORVG_LOTTIE_SOURCES}
+            ${THORVG_RAW_SOURCES}
+        )
+    endif()
+    
+    target_include_directories(thorvg PUBLIC
+        ${THORVG_INC_DIR}
+        ${THORVG_SRC_DIR}
+        ${THORVG_SRC_DIR}/renderer
+        ${THORVG_SRC_DIR}/renderer/sw_engine
+        ${THORVG_SRC_DIR}/renderer/gl_engine
+        ${THORVG_SRC_DIR}/loaders/svg
+        ${THORVG_SRC_DIR}/loaders/lottie
+        ${THORVG_SRC_DIR}/loaders/raw
+        ${THORVG_SRC_DIR}/common
+        ${THORVG_SRC_DIR}/loaders/lottie/rapidjson/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../..
+    )
+    
+    target_compile_features(thorvg PUBLIC cxx_std_17)
+    
+    # ThorVG compile definitions
+    target_compile_definitions(thorvg PRIVATE
+        TVG_ENABLE_SVG_LOADER
+        TVG_ENABLE_LOTTIE_LOADER
+        TVG_ENABLE_SW_ENGINE
+        TVG_STATIC
+        __STDC_FORMAT_MACROS
+        _CRT_SECURE_NO_WARNINGS
+        _CRT_NONSTDC_NO_WARNINGS
+        NOMINMAX
+    )
+    
+    # Enable GL backend if requested
+    if(VGLITE_USE_GL_BACKEND)
+        target_compile_definitions(thorvg PRIVATE
+            TVG_ENABLE_GL_ENGINE
+        )
+        message(STATUS "ThorVG GL engine enabled")
+    endif()
+    
+    # Export library for parent CMakeLists.txt
+    set(THORVG_LIBRARY thorvg PARENT_SCOPE)
 endif()
-
-# Export library for parent CMakeLists.txt
-set(THORVG_LIBRARY thorvg PARENT_SCOPE)

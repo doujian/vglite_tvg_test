@@ -904,7 +904,7 @@ extern "C" {
 #else
         /* SW backend: may need format conversion from internal ARGB8888 to target format */
         /* make sure target buffer is valid */
-        LV_ASSERT_NULL(ctx->target_buffer);
+        LV_ASSERT_NOT_NULL(ctx->target_buffer);
 
         /* If target_buffer is not in a format supported by thorvg, software conversion is required. */
         switch(ctx->target_format) {
