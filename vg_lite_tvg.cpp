@@ -586,10 +586,19 @@ extern "C" {
 
         /* Size must be multiple of align, See: https://en.cppreference.com/w/c/memory/aligned_alloc */
         size_t size = VG_LITE_ALIGN(buffer->height * stride, LV_VG_LITE_THORVG_BUF_ADDR_ALIGN);
-#ifndef _WIN32
-        buffer->memory = aligned_alloc(LV_VG_LITE_THORVG_BUF_ADDR_ALIGN, size);
-#else
+#if defined(__ANDROID__)
+        /* Android: use posix_memalign for aligned allocation */
+        void * ptr = nullptr;
+        if(posix_memalign(&ptr, LV_VG_LITE_THORVG_BUF_ADDR_ALIGN, size) != 0) {
+            ptr = nullptr;
+        }
+        buffer->memory = ptr;
+#elif defined(_WIN32)
+        /* Windows: use _aligned_malloc */
         buffer->memory = _aligned_malloc(size, LV_VG_LITE_THORVG_BUF_ADDR_ALIGN);
+#else
+        /* Other platforms: use aligned_alloc (C11) */
+        buffer->memory = aligned_alloc(LV_VG_LITE_THORVG_BUF_ADDR_ALIGN, size);
 #endif
         LV_ASSERT(buffer->memory);
         buffer->address = (vg_lite_uint32_t)(uintptr_t)buffer->memory;
@@ -600,9 +609,11 @@ extern "C" {
     vg_lite_error_t vg_lite_free(vg_lite_buffer_t * buffer)
     {
         LV_ASSERT(buffer->memory);
-#ifndef _WIN32
+#if defined(__ANDROID__) || !defined(_WIN32)
+        /* Android and non-Windows: use free() */
         free(buffer->memory);
 #else
+        /* Windows: use _aligned_free() */
         _aligned_free(buffer->memory);
 #endif
         memset(buffer, 0, sizeof(vg_lite_buffer_t));
