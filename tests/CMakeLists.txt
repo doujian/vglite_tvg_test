@@ -69,6 +69,26 @@ add_executable(vglite_tests
     src/samples/double_image_test.cpp
     src/samples/format_24bit_test.cpp
     src/samples/new_blend_mode_test.cpp
+    # Migrated tests from VSI_CTS
+    src/samples/tiger_test.cpp
+    src/samples/tiled_test.cpp
+    src/samples/vector_upload_test.cpp
+    src/samples/wrap_user_memory_test.cpp
+    src/samples/glyphs2_test.cpp
+    src/samples/planar_24bit_test.cpp
+    src/samples/clock_test.cpp
+    src/samples/ARGB2222_test.cpp
+    src/samples/linearGradient_ext_test.cpp
+    src/samples/imgIndex_endian_test.cpp
+    # P3 priority tests (all DISABLED - require external resources or unsupported APIs)
+    src/samples/decnano_compress_test.cpp
+    src/samples/lossy_test.cpp
+    src/samples/parking_test.cpp
+    src/samples/premultiply_test.cpp
+    src/samples/rgba8_etc2_test.cpp
+    src/samples/testEvo_test.cpp
+    src/samples/ui_test.cpp
+    src/samples/yuv_input_test.cpp
     src/unit_test/clear_unit_test.cpp
     src/unit_test/combination_test.cpp
     src/unit_test/draw_image_test.cpp

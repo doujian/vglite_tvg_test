@@ -256,6 +256,125 @@ TEST_F(MyTest, UnsupportedFeature) {
 - [ThorVG 文档](../libs/thorvg/README.md)
 - [GoogleTest 文档](https://google.github.io/googletest/)
 
+## VSI_CTS 测试迁移
+
+### 迁移来源
+
+测试用例从 `VGLite_Tests/VSI_CTS/samples/` 迁移，保持 1:1 代码逻辑。
+
+### 迁移统计
+
+| 优先级 | 迁移数 | 通过 | DISABLED | 跳过 |
+|--------|--------|------|----------|------|
+| P1 | 3 | 1 | 1 | 1 |
+| P2 | 6 | 0 | 5 | 1 |
+| P3 | 11 | 1 | 9 | 0 |
+| **总计** | **20** | **2** | **15** | **2** |
+
+### 已迁移测试列表
+
+#### P1 优先级
+
+| 测试 | 文件 | 状态 | 说明 |
+|------|------|------|------|
+| tiger | `tiger_test.cpp` | ✅ PASS | 复杂矢量图形渲染 |
+| Elementary | - | ⏭️ 跳过 | 框架库，非单个测试 |
+| tiled | `tiled_test.cpp` | ⚠️ DISABLED | ThorVG 不支持 tiled buffer |
+
+#### P2 优先级
+
+| 测试 | 文件 | 状态 | 说明 |
+|------|------|------|------|
+| vector_upload | `vector_upload_test.cpp` | ⚠️ DISABLED | vg_lite_upload_path 不支持 |
+| wrap_user_memory | `wrap_user_memory_test.cpp` | ⚠️ DISABLED | vg_lite_map 不支持 |
+| gfx | - | ⏭️ 跳过 | 大型测试套件 (100+ 文件) |
+| glyphs2 | `glyphs2_test.cpp` | ⚠️ DISABLED | 需要字体数据文件 |
+| imgIndex_endian | `imgIndex_endian_test.cpp` | ⚠️ DISABLED | 索引字节序功能不支持 |
+| 24bit_planar | `planar_24bit_test.cpp` | ⚠️ DISABLED | 24位平面格式不支持 |
+
+#### P3 优先级
+
+| 测试 | 文件 | 状态 | 说明 |
+|------|------|------|------|
+| ARGB2222 | `ARGB2222_test.cpp` | ⚠️ DISABLED | RGBA2222 格式不支持 |
+| clock | `clock_test.cpp` | ✅ PASS | 时钟动画演示 |
+| linearGradient | `linearGradient_ext_test.cpp` | ⚠️ DISABLED | 扩展渐变 API 不支持 |
+| decnano_compress | `decnano_compress_test.cpp` | ⚠️ DISABLED | 需要 landscape.raw + 压缩 API |
+| lossy | `lossy_test.cpp` | ⚠️ DISABLED | 需要 folder.raw + YUV tiled 格式 |
+| parking | `parking_test.cpp` | ⚠️ DISABLED | 需要 Resource_6/*.img.h 资源文件 |
+| premultiply | `premultiply_test.cpp` | ⚠️ DISABLED | 需要 landscape.raw |
+| rgba8_etc2 | `rgba8_etc2_test.cpp` | ⚠️ DISABLED | 需要 landscape.pkm |
+| testEvo | `testEvo_test.cpp` | ⚠️ DISABLED | 需要 Elm 框架 + EVO 文件 |
+| ui | `ui_test.cpp` | ⚠️ DISABLED | 需要 icons/*.raw 文件 |
+| yuv_input | `yuv_input_test.cpp` | ⚠️ DISABLED | 需要 YUV raw 文件 |
+
+### 跳过的大型测试
+
+#### Elementary - 框架库
+
+**路径:** `VSI_CTS/samples/Elementary/`
+
+**跳过原因:** 这是一个完整的图形框架库 (Elm Framework)，不是单个测试用例。
+
+```
+Elementary/
+├── Elm.h              # 框架头文件
+├── ElmBuffer.cpp      # 缓冲区管理
+├── ElmDraw.cpp        # 绘制引擎
+├── ElmObject.cpp      # 对象系统
+├── ElmPath.cpp        # 路径处理
+├── ElmImage.cpp       # 图像处理
+├── ElmFill.cpp        # 填充
+├── ElmGradient.cpp    # 渐变
+├── ElmStroke.cpp      # 描边
+└── ... (20+ 文件)
+```
+
+**依赖关系:**
+- 需要整个 Elm 框架编译
+- testEvo 测试依赖此框架
+- 迁移需要移植整个框架，而非单个文件
+
+#### gfx - 大型测试套件
+
+**路径:** `VSI_CTS/samples/gfx/`
+
+**跳过原因:** 这是一个包含 100+ 个独立测试用例的大型套件。
+
+```
+gfx/
+├── Test_BasicFill.cpp
+├── Test_BasicStroke.cpp
+├── Test_PathCopy.cpp
+├── Test_PathLength.cpp
+├── Test_Transform.cpp
+├── Test_ClipRect.cpp
+├── Test_GradientLinear.cpp
+├── Test_GradientRadial.cpp
+├── Test_Image.cpp
+├── Test_Blend.cpp
+└── ... (100+ 文件)
+```
+
+**迁移策略:** 按需从中挑选特定测试用例单独迁移。
+
+### ThorVG 后端限制
+
+以下功能在 ThorVG 后端不被支持，导致测试被 DISABLED：
+
+| API/功能 | 状态 |
+|----------|------|
+| `vg_lite_upload_path()` | 不支持 |
+| `vg_lite_map()` | 不支持 |
+| Tiled buffer | 不支持 |
+| VG_LITE_RGBA2222 格式 | 不支持 |
+| 24位平面格式 | 不支持 |
+| 索引字节序 | 不支持 |
+| 扩展线性渐变 | 不支持 |
+| DecNano 压缩 | 不支持 |
+| ETC2 纹理压缩 | 不支持 |
+| YUV tiled 格式 | 不支持
+
 ## 许可证
 
 与主项目相同。
