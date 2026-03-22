@@ -3,11 +3,14 @@ REM ============================================================================
 REM Android APK Build Script for VGLite Demos
 REM ============================================================================
 REM Usage:
-REM   build_android.bat <demo>    - Build specific demo (e.g. build_android.bat clear_demo)
+REM   build_android.bat           - Build ALL demos (default when double-clicked)
+REM   build_android.bat <demo>    - Build specific demo
+REM   build_android.bat list      - List available demos
 REM   build_android.bat clean     - Clean build directories
+REM   build_android.bat help      - Show this help
 REM ============================================================================
 
-setlocal
+setlocal EnableDelayedExpansion
 
 REM Configuration - EDIT THESE PATHS
 set "ANDROID_SDK=E:\Android\Sdk"
@@ -21,20 +24,83 @@ set "KEYSTORE_PASS=android"
 set "KEY_ALIAS=androiddebugkey"
 
 REM Parse arguments
-if "%~1"=="" goto show_help
+if "%~1"=="" goto build_all
 if "%~1"=="clean" goto do_clean
+if "%~1"=="list" goto list_demos
+if "%~1"=="help" goto show_help
 goto do_build
 
 :show_help
 echo.
 echo VGLite Android APK Builder
 echo.
-echo Usage: build_android.bat ^<demo^>
-echo        build_android.bat clean
+echo Usage:
+echo   build_android.bat           - Build ALL demos (default when double-clicked)
+echo   build_android.bat ^<demo^>    - Build specific demo
+echo   build_android.bat list      - List available demos
+echo   build_android.bat clean     - Clean build directories
+echo   build_android.bat help      - Show this help
 echo.
 echo Examples:
-echo   build_android.bat clear_demo
-echo   build_android.bat clean
+echo   build_android.bat             - Build all demos
+echo   build_android.bat clear_demo  - Build clear_demo only
+echo   build_android.bat list        - Show available demos
+echo.
+pause
+exit /b 0
+
+:list_demos
+echo.
+echo Available demos with Android support:
+echo.
+set FOUND=0
+for /d %%d in ("%~dp0demos\*") do (
+    if exist "%%d\android" (
+        echo   - %%~nxd
+        set FOUND=1
+    )
+)
+if "!FOUND!"=="0" (
+    echo   (No demos with Android support found)
+)
+echo.
+pause
+exit /b 0
+
+:build_all
+echo.
+echo ============================================================================
+echo Building ALL Android APKs
+echo ============================================================================
+echo.
+
+REM Check prerequisites first
+if not exist "%ANDROID_SDK%" (
+    echo Error: Android SDK not found at %ANDROID_SDK%
+    echo Please edit build_android.bat and set ANDROID_SDK to your path.
+    echo.
+    pause
+    exit /b 1
+)
+
+set BUILD_COUNT=0
+set FAIL_COUNT=0
+
+for /d %%d in ("%~dp0demos\*") do (
+    if exist "%%d\android" (
+        call :build_single "%%~nxd"
+        if !ERRORLEVEL! EQU 0 (
+            set /a BUILD_COUNT+=1
+        ) else (
+            set /a FAIL_COUNT+=1
+        )
+    )
+)
+
+echo.
+echo ============================================================================
+echo Build Complete: %BUILD_COUNT% succeeded, %FAIL_COUNT% failed
+echo ============================================================================
 echo.
 pause
 exit /b 0
@@ -44,13 +110,15 @@ echo.
 echo Cleaning Android build directories...
 echo.
 
-if exist "%~dp0demos\clear_demo\android\app\src\main\cpp\build_android" (
-    echo Removing: clear_demo build_android
-    rmdir /s /q "%~dp0demos\clear_demo\android\app\src\main\cpp\build_android"
-)
-if exist "%~dp0demos\clear_demo\android\app\src\main\cpp\apk_build" (
-    echo Removing: clear_demo apk_build
-    rmdir /s /q "%~dp0demos\clear_demo\android\app\src\main\cpp\apk_build"
+for /d %%d in ("%~dp0demos\*") do (
+    if exist "%%d\android\app\src\main\cpp\build_android" (
+        echo Removing: %%~nxd build_android
+        rmdir /s /q "%%d\android\app\src\main\cpp\build_android"
+    )
+    if exist "%%d\android\app\src\main\cpp\apk_build" (
+        echo Removing: %%~nxd apk_build
+        rmdir /s /q "%%d\android\app\src\main\cpp\apk_build"
+    )
 )
 if exist "%~dp0build\demos" (
     echo Removing: build\demos
@@ -64,6 +132,20 @@ pause
 exit /b 0
 
 :do_build
+call :build_single "%~1"
+if errorlevel 1 (
+    pause
+    exit /b 1
+)
+pause
+exit /b 0
+
+REM ============================================================================
+REM build_single: Build a single demo APK
+REM Args: %%1 = demo name
+REM Returns: 0 on success, 1 on failure
+REM ============================================================================
+:build_single
 set "DEMO=%~1"
 set "ANDROID_DIR=%~dp0demos\%DEMO%\android"
 
@@ -71,7 +153,6 @@ if not exist "%ANDROID_DIR%" (
     echo.
     echo Error: Demo '%DEMO%' not found or has no Android support.
     echo.
-    pause
     exit /b 1
 )
 
@@ -85,21 +166,18 @@ if not exist "%ANDROID_SDK%" (
     echo Error: Android SDK not found at %ANDROID_SDK%
     echo Please edit build_android.bat and set ANDROID_SDK to your path.
     echo.
-    pause
     exit /b 1
 )
 
 if not exist "%ANDROID_NDK%" (
     echo Error: Android NDK not found at %ANDROID_NDK%
     echo.
-    pause
     exit /b 1
 )
 
 if not exist "%ANDROID_CMAKE%" (
     echo Error: CMake not found at %ANDROID_CMAKE%
     echo.
-    pause
     exit /b 1
 )
 
@@ -121,7 +199,6 @@ if not exist "%ANDROID_BUILD_DIR%\CMakeCache.txt" (
     if errorlevel 1 (
         echo Error: CMake configuration failed.
         echo.
-        pause
         exit /b 1
     )
 ) else (
@@ -137,7 +214,6 @@ echo [2/5] Building native library...
 if errorlevel 1 (
     echo Error: Build failed.
     echo.
-    pause
     exit /b 1
 )
 
@@ -190,7 +266,6 @@ set "BASE_APK=%APK_OUTPUT%\base.apk"
 if errorlevel 1 (
     echo Error: aapt2 failed.
     echo.
-    pause
     exit /b 1
 )
 
@@ -227,8 +302,9 @@ if exist "%FINAL_APK%" (
     echo ============================================================================
 ) else (
     echo Error: APK creation failed.
+    exit /b 1
 )
 
-echo.
-pause
+exit /b 0
+
 endlocal
