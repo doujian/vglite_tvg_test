@@ -1,0 +1,46 @@
+# Build directories
+tests/build/
+**/build/
+**/cmake-build-*/
+
+# IDE files
+.vs/
+.vscode/
+*.suo
+*.user
+*.sln
+*.vcxproj*
+*.opensdf
+*.sdf
+*.pdb
+
+# Compiled files
+*.obj
+*.o
+*.a
+*.lib
+*.exe
+*.dll
+*.so
+*.dylib
+
+# CMake cache
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test output images
+tests/output/
+*.png
+!tests/vector.png
