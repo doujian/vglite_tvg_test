@@ -48,8 +48,8 @@ TEST_F(ImgA4Test, ImgA4_Blit) {
     ASSERT_EQ(error_, VG_LITE_SUCCESS) << "vg_lite_init failed";
     
     // Load A4 image (from original)
-    if (vg_lite_load_raw(&image, "resources/imgA4/a4_image.raw") != 0) {
-        GTEST_SKIP() << "resources/imgA4/a4_image.raw file not found";
+    if (vg_lite_load_raw(&image, "tests/resources/imgA4/a4_image.raw") != 0) {
+        GTEST_SKIP() << "tests/resources/imgA4/a4_image.raw file not found";
     }
     
     // Allocate buffer

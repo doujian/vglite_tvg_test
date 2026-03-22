@@ -66,8 +66,8 @@ TEST_F(ColorTransformationTest, ColorTransformation_Blit) {
     }
     
     // Load image (from original lines 96-100)
-    if (vg_lite_load_raw(&image_, "resources/color_transformation/landscape.raw") != 0) {
-        GTEST_SKIP() << "resources/color_transformation/landscape.raw file not found";
+    if (vg_lite_load_raw(&image_, "tests/resources/color_transformation/landscape.raw") != 0) {
+        GTEST_SKIP() << "tests/resources/color_transformation/landscape.raw file not found";
     }
     
     // Allocate buffer (from original lines 103-107)

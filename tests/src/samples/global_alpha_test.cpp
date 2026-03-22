@@ -66,8 +66,8 @@ TEST_F(GlobalAlphaTest, GlobalAlpha_Blit) {
     }
     
     // Load image (from original lines 72-76)
-    if (vg_lite_load_raw(&image_, "resources/global_alpha/landscape.raw") != 0) {
-        GTEST_SKIP() << "resources/global_alpha/landscape.raw file not found";
+    if (vg_lite_load_raw(&image_, "tests/resources/global_alpha/landscape.raw") != 0) {
+        GTEST_SKIP() << "tests/resources/global_alpha/landscape.raw file not found";
     }
     
     // Allocate buffer (from original lines 81-84)

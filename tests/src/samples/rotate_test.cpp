@@ -60,7 +60,7 @@ TEST_F(RotateTest, Rotate) {
     
     // Load the image (from original lines 74-78)
     // Resource file located in tests/resources/rotate/
-    if (vg_lite_load_raw(&image_, "resources/rotate/landscape.raw") != 0) {
+    if (vg_lite_load_raw(&image_, "tests/resources/rotate/landscape.raw") != 0) {
         GTEST_SKIP() << "SKIPPED: resources/rotate/landscape.raw file not found";
     }
     

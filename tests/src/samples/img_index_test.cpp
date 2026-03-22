@@ -48,8 +48,8 @@ TEST_F(ImgIndexTest, ImgIndex_Blit) {
     ASSERT_EQ(error_, VG_LITE_SUCCESS) << "vg_lite_init failed";
     
     // Load indexed image (from original)
-    if (vg_lite_load_raw(&image, "resources/imgIndex/indexed.raw") != 0) {
-        GTEST_SKIP() << "resources/imgIndex/indexed.raw file not found";
+    if (vg_lite_load_raw(&image, "tests/resources/imgIndex/indexed.raw") != 0) {
+        GTEST_SKIP() << "tests/resources/imgIndex/indexed.raw file not found";
     }
     
     // Allocate buffer

@@ -101,7 +101,7 @@ TEST_F(ScaleTest, Scale) {
     
     // Load the source image (from original lines 95-99)
     // Resource file located in tests/resources/scale/
-    if (vg_lite_load_raw(&source_, "resources/scale/circle.raw") != 0) {
+    if (vg_lite_load_raw(&source_, "tests/resources/scale/circle.raw") != 0) {
         GTEST_SKIP() << "SKIPPED: resources/scale/circle.raw file not found";
     }
     

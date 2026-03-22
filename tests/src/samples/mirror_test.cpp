@@ -69,8 +69,8 @@ TEST_F(MirrorTest, Mirror_Blit) {
     }
     
     // Load image (from original lines 95-99)
-    if (vg_lite_load_raw(&image_, "resources/mirror/landscape.raw") != 0) {
-        GTEST_SKIP() << "resources/mirror/landscape.raw file not found";
+    if (vg_lite_load_raw(&image_, "tests/resources/mirror/landscape.raw") != 0) {
+        GTEST_SKIP() << "tests/resources/mirror/landscape.raw file not found";
     }
     
     // Allocate buffer (from original lines 102-106)

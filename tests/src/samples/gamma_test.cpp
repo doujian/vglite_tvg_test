@@ -75,8 +75,8 @@ TEST_F(GammaTest, Gamma_Blit) {
     }
     
     // Load image (from original lines 107-111)
-    if (vg_lite_load_raw(&image_, "resources/gamma/landscape.raw") != 0) {
-        GTEST_SKIP() << "resources/gamma/landscape.raw file not found";
+    if (vg_lite_load_raw(&image_, "tests/resources/gamma/landscape.raw") != 0) {
+        GTEST_SKIP() << "tests/resources/gamma/landscape.raw file not found";
     }
     
     // Allocate buffer (from original lines 114-118)

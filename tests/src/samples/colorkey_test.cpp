@@ -72,7 +72,7 @@ TEST_F(ColorKeyTest, ColorKey) {
     
     // Load image (from original lines 82-86)
     // Resource file located in tests/resources/colorkey/
-    if (vg_lite_load_raw(&image_, "resources/colorkey/landscape.raw") != 0) {
+    if (vg_lite_load_raw(&image_, "tests/resources/colorkey/landscape.raw") != 0) {
         GTEST_SKIP() << "SKIPPED: resources/colorkey/landscape.raw file not found";
     }
     
