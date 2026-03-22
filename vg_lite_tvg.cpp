@@ -2567,24 +2567,26 @@ static Result shape_append_path(Shape * shape, vg_lite_path_t * path, vg_lite_ma
         cur += arg_len * fmt_len;
     }
 
-    TVG_CHECK_RETURN_RESULT(shape_set_stroke(shape, path));
+     TVG_CHECK_RETURN_RESULT(shape_set_stroke(shape, path));
 
-    float x_min = path->bounding_box[0];
-    float y_min = path->bounding_box[1];
-    float x_max = path->bounding_box[2];
-    float y_max = path->bounding_box[3];
+     /* Bounding box clipping - clip shape to its bounding box for optimization */
+     float x_min = path->bounding_box[0];
+     float y_min = path->bounding_box[1];
+     float x_max = path->bounding_box[2];
+     float y_max = path->bounding_box[3];
 
-    if(math_equal(x_min, -FLT_MAX) && math_equal(y_min, -FLT_MAX)
-       && math_equal(x_max, FLT_MAX) && math_equal(y_max, FLT_MAX)) {
-        return Result::Success;
-    }
+     if(math_equal(x_min, -FLT_MAX) && math_equal(y_min, -FLT_MAX)
+        && math_equal(x_max, FLT_MAX) && math_equal(y_max, FLT_MAX)) {
+         return Result::Success;
+     }
 
-     auto cilp = Shape::gen();
-     TVG_CHECK_RETURN_RESULT(cilp->appendRect(x_min, y_min, x_max - x_min, y_max - y_min, 0, 0));
-     TVG_CHECK_RETURN_RESULT(cilp->transform(matrix_conv(matrix)));
-     TVG_CHECK_RETURN_RESULT(shape->mask(cilp, MaskMethod::Alpha));
+      auto cilp = Shape::gen();
+      TVG_CHECK_RETURN_RESULT(cilp->appendRect(x_min, y_min, x_max - x_min, y_max - y_min, 0, 0));
+      TVG_CHECK_RETURN_RESULT(cilp->fill(255, 255, 255, 255));  // White fill with full alpha for visible mask
+      TVG_CHECK_RETURN_RESULT(cilp->transform(matrix_conv(matrix)));
+      TVG_CHECK_RETURN_RESULT(shape->mask(cilp, MaskMethod::Alpha));
 
-    return Result::Success;
+     return Result::Success;
 }
 
 static Result shape_append_rect(Shape * shape, const vg_lite_buffer_t * target,
