@@ -2,63 +2,31 @@
 REM ============================================================================
 REM VGLite Examples Build Script
 REM ============================================================================
-REM 
-REM This script builds VGLite demo applications using CMake and Visual Studio.
-REM Supports multiple demos with both GL and SW backends, plus Android APK.
-REM 
-REM Prerequisites:
-REM   - Visual Studio 2022 with C++ development tools
-REM   - CMake 3.14 or later
-REM   - Git (for GLFW FetchContent)
-REM   - Android SDK/NDK (for Android builds)
-REM 
-REM Usage:
-REM   build.bat                    - Build all demos (GL + SW)
-REM   build.bat <demo>             - Build specific demo (GL + SW)
-REM   build.bat <demo> gl          - Build specific demo (GL only)
-REM   build.bat <demo> sw          - Build specific demo (SW only)
-REM   build.bat <demo> apk         - Build Android APK for demo
-REM   build.bat clean              - Clean build directory
-REM   build.bat run <demo>         - Build and run demo
-REM   build.bat list               - List available demos
-REM ============================================================================
 
 setlocal
 
-REM ============================================================================
-REM Visual Studio 2022 Configuration
-REM ============================================================================
-set "VS_INSTALL_DIR=D:\Program Files\Microsoft Visual Studio\18\Community"
-set "VCVARSALL=%VS_INSTALL_DIR%\VC\Auxiliary\Build\vcvarsall.bat"
+REM 加载环境配置
+call "%~dp0..\check_env.bat" set
+if %ERRORLEVEL% neq 0 (
+    echo Error: Failed to load environment configuration.
+    echo Please run check_env.bat to verify your environment.
+    pause
+    exit /b 1
+)
 
 REM ============================================================================
-REM Android SDK/NDK Configuration
+REM Visual Studio Environment Setup
 REM ============================================================================
-set "ANDROID_SDK=E:\Android\Sdk"
-set "ANDROID_NDK=%ANDROID_SDK%\ndk\29.0.14206865"
-set "ANDROID_CMAKE=%ANDROID_SDK%\cmake\3.22.1\bin\cmake.exe"
-set "ANDROID_NINJA=%ANDROID_SDK%\cmake\3.22.1\bin\ninja.exe"
-set "ANDROID_BUILD_TOOLS=%ANDROID_SDK%\build-tools\34.0.0"
-set "ANDROID_PLATFORM=%ANDROID_SDK%\platforms\android-34"
-set "KEYSTORE_PATH=%~dp0\debug.keystore"
-set "KEYSTORE_PASS=android"
-set "KEY_ALIAS=androiddebugkey"
-
-REM Parse command line arguments first (before VS check)
-REM This allows Android builds to skip VS environment setup
-if "%1"=="apk" goto :build_apk
-
-REM Check if Visual Studio exists (only for Windows builds)
 if not exist "%VCVARSALL%" (
     echo Error: Visual Studio not found at:
     echo   %VS_INSTALL_DIR%
     echo.
-    echo Please edit build.bat and set VS_INSTALL_DIR to your Visual Studio path.
+    echo Please run check_env.bat to verify your configuration.
     goto :error_no_pause
 )
 
 echo ============================================================================
-echo Setting up Visual Studio 2022 environment...
+echo Setting up Visual Studio environment...
 echo ============================================================================
 call "%VCVARSALL%" x64
 if %ERRORLEVEL% neq 0 (

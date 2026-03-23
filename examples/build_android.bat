@@ -12,16 +12,14 @@ REM ============================================================================
 
 setlocal EnableDelayedExpansion
 
-REM Configuration - EDIT THESE PATHS
-set "ANDROID_SDK=E:\Android\Sdk"
-set "ANDROID_NDK=%ANDROID_SDK%\ndk\29.0.14206865"
-set "ANDROID_CMAKE=%ANDROID_SDK%\cmake\3.22.1\bin\cmake.exe"
-set "ANDROID_NINJA=%ANDROID_SDK%\cmake\3.22.1\bin\ninja.exe"
-set "ANDROID_BUILD_TOOLS=%ANDROID_SDK%\build-tools\34.0.0"
-set "ANDROID_PLATFORM=%ANDROID_SDK%\platforms\android-34"
-set "KEYSTORE_PATH=%~dp0debug.keystore"
-set "KEYSTORE_PASS=android"
-set "KEY_ALIAS=androiddebugkey"
+REM 加载环境配置
+call "%~dp0..\check_env.bat" set
+if %ERRORLEVEL% neq 0 (
+    echo Error: Failed to load environment configuration.
+    echo Please run check_env.bat to verify your environment.
+    pause
+    exit /b 1
+)
 
 REM Parse arguments
 if "%~1"=="" goto build_all
@@ -237,8 +235,21 @@ if not exist "%DEX_SRC%\classes.dex" (
     if not exist "%DEX_SRC%\com\example\vglitedemo" mkdir "%DEX_SRC%\com\example\vglitedemo"
     echo package com.example.vglitedemo; > "%DEX_SRC%\com\example\vglitedemo\Stub.java"
     echo public class Stub {} >> "%DEX_SRC%\com\example\vglitedemo\Stub.java"
-    javac -source 1.8 -target 1.8 -d "%DEX_SRC%" "%DEX_SRC%\com\example\vglitedemo\Stub.java" >nul 2>&1
-    "%ANDROID_BUILD_TOOLS%\d8.bat" --output "%DEX_SRC%" "%DEX_SRC%\com\example\vglitedemo\Stub.class" >nul 2>&1
+    
+    echo Compiling Java stub...
+    javac -source 1.8 -target 1.8 -d "%DEX_SRC%" "%DEX_SRC%\com\example\vglitedemo\Stub.java"
+    if errorlevel 1 (
+        echo Error: javac failed. Make sure JDK is installed and in PATH.
+        exit /b 1
+    )
+    
+    echo Converting to DEX...
+    "%ANDROID_BUILD_TOOLS%\d8.bat" --output "%DEX_SRC%" "%DEX_SRC%\com\example\vglitedemo\Stub.class"
+    echo d8 exit code: %ERRORLEVEL%
+    if errorlevel 1 (
+        echo Error: d8 failed with code %ERRORLEVEL%. Make sure Android build-tools are installed.
+        exit /b 1
+    )
 )
 
 if exist "%DEX_SRC%\classes.dex" copy "%DEX_SRC%\classes.dex" "%APK_OUTPUT%\" >nul
@@ -261,17 +272,38 @@ echo [4/5] Packaging APK...
 
 set "BASE_APK=%APK_OUTPUT%\base.apk"
 
+echo Running aapt2 link...
 "%ANDROID_BUILD_TOOLS%\aapt2.exe" link -o "%BASE_APK%" -I "%ANDROID_PLATFORM%\android.jar" --manifest "%APK_OUTPUT%\AndroidManifest.xml" --auto-add-overlay
 
 if errorlevel 1 (
-    echo Error: aapt2 failed.
+    echo Error: aapt2 failed. Check Android build-tools installation.
+    echo.
+    echo Checking APK_OUTPUT contents:
+    dir "%APK_OUTPUT%"
     echo.
     exit /b 1
 )
 
+echo Adding native library to APK...
 pushd "%APK_OUTPUT%"
 "%ANDROID_BUILD_TOOLS%\aapt.exe" add base.apk lib/arm64-v8a/libvglite_demo.so >nul
-if exist classes.dex "%ANDROID_BUILD_TOOLS%\aapt.exe" add base.apk classes.dex >nul
+if errorlevel 1 (
+    echo Error: Failed to add libvglite_demo.so to APK
+    popd
+    exit /b 1
+)
+
+if exist classes.dex (
+    echo Adding classes.dex to APK...
+    "%ANDROID_BUILD_TOOLS%\aapt.exe" add base.apk classes.dex >nul
+    if errorlevel 1 (
+        echo Error: Failed to add classes.dex to APK
+        popd
+        exit /b 1
+    )
+) else (
+    echo Warning: classes.dex not found, skipping...
+)
 popd
 
 REM Step 5: Sign
@@ -284,8 +316,25 @@ if not exist "%KEYSTORE_PATH%" (
 )
 
 set "ALIGNED_APK=%APK_OUTPUT%\aligned.apk"
+echo Running zipalign...
 "%ANDROID_BUILD_TOOLS%\zipalign.exe" -f 4 "%BASE_APK%" "%ALIGNED_APK%" >nul
-call "%ANDROID_BUILD_TOOLS%\apksigner.bat" sign --ks "%KEYSTORE_PATH%" --ks-pass pass:%KEYSTORE_PASS% --ks-key-alias %KEY_ALIAS% --key-pass pass:%KEYSTORE_PASS% --out "%FINAL_APK%" "%ALIGNED_APK%" >nul 2>&1
+if errorlevel 1 (
+    echo Error: zipalign failed
+    exit /b 1
+)
+
+echo Running apksigner...
+REM apksigner format: apksigner sign --ks <keystore> --ks-pass pass:<password> --ks-key-alias <alias> <input>
+call "%ANDROID_BUILD_TOOLS%\apksigner.bat" sign --ks "%KEYSTORE_PATH%" --ks-pass pass:%KEYSTORE_PASS% --ks-key-alias %KEY_ALIAS% "%ALIGNED_APK%"
+if errorlevel 1 (
+    echo Error: apksigner failed
+    echo Keystore: %KEYSTORE_PATH%
+    echo Input: %ALIGNED_APK%
+    exit /b 1
+)
+
+REM Copy signed APK to final location
+copy "%ALIGNED_APK%" "%FINAL_APK%" >nul
 
 REM Copy to build dir
 set "BUILD_APK_DIR=%~dp0build\demos\%DEMO%"
@@ -297,11 +346,17 @@ if exist "%FINAL_APK%" (
     echo Success!
     echo ============================================================================
     echo APK: %BUILD_APK_DIR%\%DEMO%.apk
+    echo Size: 
+    for %%F in ("%BUILD_APK_DIR%\%DEMO%.apk") do echo   %%~zF bytes
     echo.
     echo Install: adb install -r "%BUILD_APK_DIR%\%DEMO%.apk"
     echo ============================================================================
 ) else (
     echo Error: APK creation failed.
+    echo Expected file: %FINAL_APK%
+    echo.
+    echo APK_OUTPUT directory contents:
+    dir "%APK_OUTPUT%"
     exit /b 1
 )
 

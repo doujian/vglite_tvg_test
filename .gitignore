@@ -70,7 +70,7 @@ debug.keystore
 # Test output images
 tests/output/
 *.png
-!tests/vector.png
+tests/vector.png
 
 # User-specific configuration
 build_config.local.bat
