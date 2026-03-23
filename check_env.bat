@@ -1,38 +1,36 @@
 @echo off
 
-REM Check Environment Script for VGLite ThorVG
-REM NO PARENTHESIS BLOCKS - Avoid batch parser bugs
-
 set PASS=0
 set WARN=0
 set FAIL=0
 
-REM Default versions
 set NDK_VERSION=29.0.14206865
 set CMAKE_VERSION=3.22.1
 set BUILD_TOOLS_VERSION=34.0.0
 set PLATFORM_VERSION=34
 
-REM Parse arguments
 set MODE=default
 if "%~1"=="check" set MODE=check
 if "%~1"=="set" set MODE=set
 
-REM Initialize variables
 set VS_INSTALL_DIR=
 set ANDROID_SDK=
 set JAVA_HOME=
 
-REM ============================================================================
-REM Read from env_config.txt (Highest Priority)
-REM ============================================================================
-if exist "%~dp0env_config.txt" for /f "usebackq tokens=1,* delims==" %%a in ("%~dp0env_config.txt") do call :parse_config "%%a" "%%b"
+if not exist "%~dp0env_config.txt" goto config_done
+for /f "usebackq tokens=1,* delims==" %%a in ("%~dp0env_config.txt") do call :parse_config "%%a" "%%b"
+:config_done
 
-REM ============================================================================
-REM Auto Detection (if not set from config)
-REM ============================================================================
+if not "%VS_INSTALL_DIR%"=="" set VCVARSALL=%VS_INSTALL_DIR%\VC\Auxiliary\Build\vcvarsall.bat
 
-REM Detect Visual Studio
+if "%ANDROID_SDK%"=="" goto skip_derived
+set ANDROID_NDK=%ANDROID_SDK%\ndk\%NDK_VERSION%
+set ANDROID_CMAKE=%ANDROID_SDK%\cmake\%CMAKE_VERSION%\bin\cmake.exe
+set ANDROID_NINJA=%ANDROID_SDK%\cmake\%CMAKE_VERSION%\bin\ninja.exe
+set ANDROID_BUILD_TOOLS=%ANDROID_SDK%\build-tools\%BUILD_TOOLS_VERSION%
+set ANDROID_PLATFORM=%ANDROID_SDK%\platforms\android-%PLATFORM_VERSION%
+:skip_derived
+
 if not "%VS_INSTALL_DIR%"=="" goto vs_done1
 if exist "D:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" set VS_INSTALL_DIR=D:\Program Files\Microsoft Visual Studio\18\Community
 :vs_done1
@@ -45,9 +43,6 @@ if not "%VS_INSTALL_DIR%"=="" goto vs_done3
 if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" set VS_INSTALL_DIR=C:\Program Files\Microsoft Visual Studio\2022\Community
 :vs_done3
 
-if not "%VS_INSTALL_DIR%"=="" set VCVARSALL=%VS_INSTALL_DIR%\VC\Auxiliary\Build\vcvarsall.bat
-
-REM Detect Android SDK
 if not "%ANDROID_SDK%"=="" goto sdk_done1
 if exist "D:\Android\Sdk\build-tools" set ANDROID_SDK=D:\Android\Sdk
 :sdk_done1
@@ -60,16 +55,6 @@ if not "%ANDROID_SDK%"=="" goto sdk_done3
 if exist "C:\Users\%USERNAME%\AppData\Local\Android\Sdk\build-tools" set ANDROID_SDK=C:\Users\%USERNAME%\AppData\Local\Android\Sdk
 :sdk_done3
 
-REM Set derived Android variables
-if "%ANDROID_SDK%"=="" goto skip_android
-set ANDROID_NDK=%ANDROID_SDK%\ndk\%NDK_VERSION%
-set ANDROID_CMAKE=%ANDROID_SDK%\cmake\%CMAKE_VERSION%\bin\cmake.exe
-set ANDROID_NINJA=%ANDROID_SDK%\cmake\%CMAKE_VERSION%\bin\ninja.exe
-set ANDROID_BUILD_TOOLS=%ANDROID_SDK%\build-tools\%BUILD_TOOLS_VERSION%
-set ANDROID_PLATFORM=%ANDROID_SDK%\platforms\android-%PLATFORM_VERSION%
-:skip_android
-
-REM Detect JDK
 if not "%JAVA_HOME%"=="" goto jdk_done1
 if exist "D:\Programs\jdk-17.0.147\bin\javac.exe" set JAVA_HOME=D:\Programs\jdk-17.0.147
 :jdk_done1
@@ -82,25 +67,17 @@ if not "%JAVA_HOME%"=="" goto jdk_done3
 if exist "C:\Program Files\Java\jdk-17\bin\javac.exe" set JAVA_HOME=C:\Program Files\Java\jdk-17
 :jdk_done3
 
-REM Keystore
 set KEYSTORE_PATH=%~dp0debug.keystore
 set KEYSTORE_PASS=android
 set KEY_ALIAS=androiddebugkey
 
-REM ============================================================================
-REM Silent mode
-REM ============================================================================
 if "%MODE%"=="set" exit /b 0
-
-REM ============================================================================
-REM Start checking
-REM ============================================================================
 
 echo ============================================================================
 echo VGLite ThorVG Environment Check
 echo ============================================================================
 if exist "%~dp0env_config.txt" echo Config: %~dp0env_config.txt
-if not exist "%~dp0env_config.txt" echo Config: Not found (will generate)
+if not exist "%~dp0env_config.txt" echo Config: Not found
 echo ============================================================================
 
 echo.
@@ -341,17 +318,14 @@ echo Generated: %~dp0env_config.txt
 if "%MODE%"=="check" pause
 exit /b 0
 
-REM ============================================================================
-REM Subroutine: Parse config line
-REM ============================================================================
 :parse_config
-set KEY=%~1
-set VAL=%~2
-if "%KEY%"=="VS_INSTALL_DIR" if not "%VAL%"=="" set VS_INSTALL_DIR=%VAL%
-if "%KEY%"=="ANDROID_SDK" if not "%VAL%"=="" set ANDROID_SDK=%VAL%
-if "%KEY%"=="JAVA_HOME" if not "%VAL%"=="" set JAVA_HOME=%VAL%
-if "%KEY%"=="ANDROID_NDK_VERSION" if not "%VAL%"=="" set NDK_VERSION=%VAL%
-if "%KEY%"=="ANDROID_CMAKE_VERSION" if not "%VAL%"=="" set CMAKE_VERSION=%VAL%
-if "%KEY%"=="ANDROID_BUILD_TOOLS_VERSION" if not "%VAL%"=="" set BUILD_TOOLS_VERSION=%VAL%
-if "%KEY%"=="ANDROID_PLATFORM_VERSION" if not "%VAL%"=="" set PLATFORM_VERSION=%VAL%
-exit /b 0
+set PC_KEY=%~1
+set PC_VAL=%~2
+if "%PC_KEY%"=="VS_INSTALL_DIR" if not "%PC_VAL%"=="" set VS_INSTALL_DIR=%PC_VAL%
+if "%PC_KEY%"=="ANDROID_SDK" if not "%PC_VAL%"=="" set ANDROID_SDK=%PC_VAL%
+if "%PC_KEY%"=="JAVA_HOME" if not "%PC_VAL%"=="" set JAVA_HOME=%PC_VAL%
+if "%PC_KEY%"=="ANDROID_NDK_VERSION" if not "%PC_VAL%"=="" set NDK_VERSION=%PC_VAL%
+if "%PC_KEY%"=="ANDROID_CMAKE_VERSION" if not "%PC_VAL%"=="" set CMAKE_VERSION=%PC_VAL%
+if "%PC_KEY%"=="ANDROID_BUILD_TOOLS_VERSION" if not "%PC_VAL%"=="" set BUILD_TOOLS_VERSION=%PC_VAL%
+if "%PC_KEY%"=="ANDROID_PLATFORM_VERSION" if not "%PC_VAL%"=="" set PLATFORM_VERSION=%PC_VAL%
+goto :EOF

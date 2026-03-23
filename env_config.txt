@@ -1,0 +1,17 @@
+# VGLite ThorVG Environment Config
+# Edit this file to customize paths
+
+# Visual Studio
+VS_INSTALL_DIR=D:\Program Files\Microsoft Visual Studio\18\Community
+
+# Android SDK
+ANDROID_SDK=D:\Android\Sdk
+
+# JDK (do NOT include \bin)
+JAVA_HOME=D:\Programs\jdk-17.0.147
+
+# Versions
+ANDROID_NDK_VERSION=29.0.14206865
+ANDROID_CMAKE_VERSION=3.22.1
+ANDROID_BUILD_TOOLS_VERSION=34.0.0
+ANDROID_PLATFORM_VERSION=34
